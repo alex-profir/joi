@@ -1,4 +1,4 @@
-import * as Joi from '..';
+import Joi from '..';
 import * as Lab from '@hapi/lab';
 
 
@@ -26,11 +26,42 @@ const expArr: RegExp[] = [/a/, /b/];
 
 // --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 
+
 let schema: Joi.Schema = Joi.any();
 const schemaLike: Joi.SchemaLike = true;
 
+
 let anySchema: Joi.AnySchema = Joi.any();
-let numSchema: Joi.NumberSchema = Joi.number();
+let numSchema = Joi.number().optional();
+
+const s = Joi.object().keys({
+    arrayOpt: Joi.array(),
+    arrayReq: Joi.array().required(),
+    booleanOpt: Joi.boolean(),
+    booleanReq: Joi.boolean().required(),
+    dateOpt: Joi.date(),
+    dateReq: Joi.date().required(),
+    numberOpt: Joi.number(),
+    numberReq: Joi.number().required(),
+    objectOpt: Joi.object(),
+    objectReq: Joi.object().required(),
+    stringOpt: Joi.string(),
+    stringReq: Joi.string().required(),
+    nestedObj: Joi.object().keys({
+        nestedObj: Joi.object().keys({
+            key: Joi.string().required(),
+            nestedObj: Joi.object().keys({
+                key: Joi.string().required()
+            }).required(),
+        }),
+        nestedObjReq: Joi.object().keys({
+            key: Joi.string().required()
+        }).required()
+    })
+})
+type TSchema = Joi.GetTypeFromSchema<typeof s>
+type NumSchemaType = typeof numSchema
+type Presence = Joi.GetPresenceFromSchema<NumSchemaType>
 let strSchema: Joi.StringSchema = Joi.string();
 let arrSchema: Joi.ArraySchema = Joi.array();
 let boolSchema: Joi.BooleanSchema = Joi.boolean();

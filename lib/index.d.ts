@@ -10,6 +10,96 @@
 // TODO express type of Schema in a type-parameter (.default, .valid, .example etc)
 
 declare namespace Joi {
+
+    /**
+     * `never` suggesting that it doesn't exist, in presence meaning it's optional
+     */
+    type ExtraTyes<Presence extends PresenceMode | never = never> = {
+        presence: (p: Presence) => void
+    }
+
+    type GetTypeFromSchema<T extends ObjectSchema> = T extends ObjectSchema<infer TSchema> ? TSchema : never;
+
+    type GetPresenceFromSchema<T extends Schema> = T extends CustomSchema<ExtraTyes<infer ET>, any> ? ET : never
+    // type GetPresenceFromSchema<T extends Schema> = T["presence"] extends (a: infer A) => infer R ? (
+    //     A
+    // ) : never;
+    type GetKeysByPresence<T extends Record<string, Schema>, Presence extends PresenceMode> = {
+        [P in keyof T]: T[P] extends { _extra: ExtraTyes<Presence> } ? P : never
+    }[keyof T]
+    type RemoveEmpty<T> = {} & { [P in keyof T]: T[P] }
+    type CreateObjectSchema<T extends Record<string, Schema>> = RemoveEmpty<
+        {
+            [P in GetKeysByPresence<T, "optional">]?: TypeFromSchema<T[P]>
+        } &
+        {
+            [P in GetKeysByPresence<T, "required">]: TypeFromSchema<T[P]>
+        } &
+        {
+            [P in GetKeysByPresence<T, "forbidden">]?: null | undefined
+        }>
+    type TypeFromSchema<T = any> =
+        // maybe some typing here in the future? 🤷 idk 
+        T extends ArraySchema<any> ? any[] :
+        T extends AlternativesSchema<any> ? unknown :
+        T extends BooleanSchema<any> ? boolean :
+        T extends DateSchema<any> ? Date :
+        T extends NumberSchema<any> ? number :
+        T extends StringSchema<any> ? string :
+        T extends SymbolSchema<any> ? symbol :
+        T extends ObjectSchema<infer TSchema> ? TSchema :
+        T extends AnySchema ? any : never
+    interface SchemaTypeMap<This, E extends ExtraTyes> {
+        "any": AnySchema
+        "array": ArraySchema<E>
+        "alternatives": AlternativesSchema<E>
+        // "binary": BinarySchema<E>
+        "boolean": BooleanSchema<E>
+        "date": DateSchema<E>
+        // "function": FunctionSchema<E>
+        "number": NumberSchema<E>
+        "object": This extends ObjectSchema<infer TSchema, any> ? ObjectSchema<TSchema, E> : never
+        "string": StringSchema<E>
+        // "link": LinkSchema<E>
+        "symbol": SymbolSchema<E>
+    }
+    // | AnySchema
+    // | ArraySchema
+    // | AlternativesSchema
+    // | BinarySchema
+    // | BooleanSchema
+    // | DateSchema
+    // | FunctionSchema
+    // | NumberSchema
+    // | ObjectSchema<P>
+    // | StringSchema
+    // | LinkSchema
+    // | SymbolSchema;
+    type ReplacePresence<TMeta extends ExtraTyes, TPresence extends PresenceMode> =
+        TMeta extends ExtraTyes<never> ? ExtraTyes<TPresence> : never
+
+    interface CustomSchema<ET extends ExtraTyes = ExtraTyes<never>, SchemaType extends keyof SchemaTypeMap<any, ET> = never> extends SchemaInternals {
+        /**
+         * @warning this doesn't really exist , it's just for typing ( is this ok tho? idk )
+         */
+        _extra: ET
+        /**
+         * @warning this doesn't really exist , it's just for typing ( is this ok tho? idk )
+         */
+        _schemaType: SchemaType
+        /**
+        * Marks a key as optional which will allow undefined as values. Used to annotate the schema for readability as all keys are optional by default.
+        */
+        optional(): SchemaTypeMap<this, ReplacePresence<ET, "optional">>[SchemaType];
+
+        /**
+         * Marks a key as required which will not allow undefined as value. All keys are optional by default.
+         */
+        required(): SchemaTypeMap<this, ReplacePresence<ET, "required">>[SchemaType];
+
+    }
+    type ModifyWith<S> = Omit<AnySchema, keyof S> & S;
+
     type Types =
         | 'any'
         | 'alternatives'
@@ -688,7 +778,7 @@ declare namespace Joi {
 
     type NullableType<T> = undefined | null | T
 
-    type ObjectPropertiesSchema<T = any> = 
+    type ObjectPropertiesSchema<T = any> =
         T extends NullableType<string>
         ? Joi.StringSchema
         : T extends NullableType<number>
@@ -701,13 +791,13 @@ declare namespace Joi {
         ? Joi.ArraySchema
         : T extends NullableType<object>
         ? ObjectSchema<StrictSchemaMap<T>>
-        : never    
-    
+        : never
+
     type PartialSchemaMap<TSchema = any> = {
         [key in keyof TSchema]?: SchemaLike | SchemaLike[];
-    } 
+    }
 
-    type StrictSchemaMap<TSchema = any> =  {
+    type StrictSchemaMap<TSchema = any> = {
         [key in keyof TSchema]-?: ObjectPropertiesSchema<TSchema[key]>
     };
 
@@ -1216,7 +1306,7 @@ declare namespace Joi {
         localize?(...args: any[]): State;
     }
 
-    interface BooleanSchema extends AnySchema {
+    interface BooleanSchema<E extends ExtraTyes = ExtraTyes<"optional">> extends ModifyWith<CustomSchema<E, "boolean">> {
         /**
          * Allows for additional values to be considered valid booleans by converting them to false during validation.
          * String comparisons are by default case insensitive,
@@ -1239,7 +1329,7 @@ declare namespace Joi {
         truthy(...values: Array<string | number>): this;
     }
 
-    interface NumberSchema extends AnySchema {
+    interface NumberSchema<E extends ExtraTyes = ExtraTyes<"optional">> extends ModifyWith<CustomSchema<E, "number">> {
         /**
          * Specifies that the value must be greater than limit.
          * It can also be a reference to another field.
@@ -1306,7 +1396,7 @@ declare namespace Joi {
         unsafe(enabled?: any): this;
     }
 
-    interface StringSchema extends AnySchema {
+    interface StringSchema<E extends ExtraTyes = ExtraTyes<"optional">> extends ModifyWith<CustomSchema<E, "string">> {
         /**
          * Requires the string value to only contain a-z, A-Z, and 0-9.
          */
@@ -1471,7 +1561,7 @@ declare namespace Joi {
         uuid(options?: GuidOptions): this;
     }
 
-    interface SymbolSchema extends AnySchema {
+    interface SymbolSchema<E extends ExtraTyes = ExtraTyes<"optional">> extends ModifyWith<CustomSchema<E, "symbol">> {
         // TODO: support number and symbol index
         map(iterable: Iterable<[string | number | boolean | symbol, symbol]> | { [key: string]: symbol }): this;
     }
@@ -1495,7 +1585,7 @@ declare namespace Joi {
 
     type ComparatorFunction = (a: any, b: any) => boolean;
 
-    interface ArraySchema extends AnySchema {
+    interface ArraySchema<E extends ExtraTyes = ExtraTyes<"optional">> extends ModifyWith<CustomSchema<E, "array">> {
         /**
          * Verifies that an assertion passes for at least one item in the array, where:
          * `schema` - the validation rules required to satisfy the assertion. If the `schema` includes references, they are resolved against
@@ -1571,7 +1661,7 @@ declare namespace Joi {
         matches: SchemaLike | Reference;
     }
 
-    interface ObjectSchema<TSchema = any> extends AnySchema {
+    interface ObjectSchema<TSchema = any, E extends ExtraTyes = ExtraTyes<never>> extends ModifyWith<CustomSchema<E, "object">> {
         /**
          * Defines an all-or-nothing relationship between keys where if one of the peers is present, all of them are required as well.
          *
@@ -1602,7 +1692,7 @@ declare namespace Joi {
         /**
          * Sets or extends the allowed object keys.
          */
-        keys(schema?: SchemaMap<TSchema>): this;
+        keys<T extends Record<keyof TSchema, Schema>>(schema?: T): ObjectSchema<CreateObjectSchema<T>, ExtraTyes<"optional">>;
 
         /**
          * Specifies the exact number of keys in the object.
@@ -1713,7 +1803,7 @@ declare namespace Joi {
         length(limit: number | Reference): this;
     }
 
-    interface DateSchema extends AnySchema {
+    interface DateSchema<E extends ExtraTyes = ExtraTyes<"optional">> extends ModifyWith<CustomSchema<E, "date">> {
         /**
          * Specifies that the value must be greater than date.
          * Notes: 'now' can be passed in lieu of date so as to always compare relatively to the current date,
@@ -1783,7 +1873,7 @@ declare namespace Joi {
         maxArity(n: number): this;
     }
 
-    interface AlternativesSchema extends AnySchema {
+    interface AlternativesSchema<E extends ExtraTyes = ExtraTyes<"optional">> extends ModifyWith<CustomSchema<E, "alternatives">> {
         /**
          * Adds a conditional alternative schema type, either based on another key value, or a schema peeking into the current value.
          */
