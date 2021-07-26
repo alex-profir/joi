@@ -49,6 +49,8 @@ declare namespace Joi {
         T extends SymbolSchema<any> ? symbol :
         T extends ObjectSchema<infer TSchema> ? TSchema :
         T extends AnySchema ? any : never
+
+    type Test<Z> = Z extends ObjectSchema<infer T, any> ? T : never;
     interface SchemaTypeMap<This, E extends ExtraTyes> {
         "any": AnySchema
         "array": ArraySchema<E>
@@ -58,7 +60,7 @@ declare namespace Joi {
         "date": DateSchema<E>
         // "function": FunctionSchema<E>
         "number": NumberSchema<E>
-        "object": This extends ObjectSchema<infer TSchema, any> ? ObjectSchema<TSchema, E> : never
+        "object": This// extends ObjectSchema<infer TSchema, never> ? ObjectSchema<TSchema, never> : never//This extends ObjectSchema<infer TSchema, any> ? ObjectSchema<TSchema, E> : never
         "string": StringSchema<E>
         // "link": LinkSchema<E>
         "symbol": SymbolSchema<E>
@@ -78,7 +80,7 @@ declare namespace Joi {
     type ReplacePresence<TMeta extends ExtraTyes, TPresence extends PresenceMode> =
         TMeta extends ExtraTyes<never> ? ExtraTyes<TPresence> : never
 
-    interface CustomSchema<ET extends ExtraTyes = ExtraTyes<never>, SchemaType extends keyof SchemaTypeMap<any, ET> = never> extends SchemaInternals {
+    interface CustomSchema<ET extends ExtraTyes = ExtraTyes<"optional">, SchemaType extends keyof SchemaTypeMap<any, ET> = never> extends SchemaInternals {
         /**
          * @warning this doesn't really exist , it's just for typing ( is this ok tho? idk )
          */
