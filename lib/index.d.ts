@@ -51,7 +51,7 @@ declare namespace Joi {
         T extends AnySchema ? any : never
 
     type Test<Z> = Z extends ObjectSchema<infer T, any> ? T : never;
-    interface SchemaTypeMap<This, E extends ExtraTyes> {
+    interface SchemaTypeMap<TSchema, E extends ExtraTyes> {
         "any": AnySchema
         "array": ArraySchema<E>
         "alternatives": AlternativesSchema<E>
@@ -60,7 +60,7 @@ declare namespace Joi {
         "date": DateSchema<E>
         // "function": FunctionSchema<E>
         "number": NumberSchema<E>
-        "object": This// extends ObjectSchema<infer TSchema, never> ? ObjectSchema<TSchema, never> : never//This extends ObjectSchema<infer TSchema, any> ? ObjectSchema<TSchema, E> : never
+        "object": ObjectSchema<TSchema, E>//This// extends ObjectSchema<infer TSchema, never> ? ObjectSchema<TSchema, never> : never//This extends ObjectSchema<infer TSchema, any> ? ObjectSchema<TSchema, E> : never
         "string": StringSchema<E>
         // "link": LinkSchema<E>
         "symbol": SymbolSchema<E>
@@ -80,7 +80,8 @@ declare namespace Joi {
     type ReplacePresence<TMeta extends ExtraTyes, TPresence extends PresenceMode> =
         TMeta extends ExtraTyes<never> ? ExtraTyes<TPresence> : never
 
-    interface CustomSchema<ET extends ExtraTyes = ExtraTyes<"optional">, SchemaType extends keyof SchemaTypeMap<any, ET> = never> extends SchemaInternals {
+    //passing the Tschema just for the object type
+    interface CustomSchema<ET extends ExtraTyes = ExtraTyes<"optional">, SchemaType extends keyof SchemaTypeMap<any, ET> = never, TSchema = any> extends SchemaInternals {
         /**
          * @warning this doesn't really exist , it's just for typing ( is this ok tho? idk )
          */
@@ -92,12 +93,12 @@ declare namespace Joi {
         /**
         * Marks a key as optional which will allow undefined as values. Used to annotate the schema for readability as all keys are optional by default.
         */
-        optional(): SchemaTypeMap<this, ReplacePresence<ET, "optional">>[SchemaType];
+        optional(): SchemaTypeMap<TSchema, ReplacePresence<ET, "optional">>[SchemaType];
 
         /**
          * Marks a key as required which will not allow undefined as value. All keys are optional by default.
          */
-        required(): SchemaTypeMap<this, ReplacePresence<ET, "required">>[SchemaType];
+        required(): SchemaTypeMap<TSchema, ReplacePresence<ET, "required">>[SchemaType];
 
     }
     type ModifyWith<S> = Omit<AnySchema, keyof S> & S;
@@ -1662,8 +1663,7 @@ declare namespace Joi {
         fallthrough?: boolean;
         matches: SchemaLike | Reference;
     }
-
-    interface ObjectSchema<TSchema = any, E extends ExtraTyes = ExtraTyes<never>> extends ModifyWith<CustomSchema<E, "object">> {
+    interface ObjectSchema<TSchema = any, E extends ExtraTyes = ExtraTyes<never>> extends ModifyWith<CustomSchema<E, "object", TSchema>> {
         /**
          * Defines an all-or-nothing relationship between keys where if one of the peers is present, all of them are required as well.
          *
